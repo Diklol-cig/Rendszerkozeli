@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 int checkname(char *name){
     // Ellenőrizzük, hogy a program neve "chart" legyen
@@ -11,8 +12,8 @@ int checkname(char *name){
 
 int checkdup(int argc, char *argv[]){
     int dup = 0;
-    for (int i = 1; i < argc; i++) {
-        for(int j = 1; j < argc; j++) {
+    for (int i = 1; i < argc -1; i++) {
+        for(int j = i + 1; j < argc; j++) {
             {
                 if (strcmp(argv[i], argv[j]) == 0) {
                     dup++;
@@ -20,8 +21,8 @@ int checkdup(int argc, char *argv[]){
             }
         }
     }
-
-    if(dup>0){
+    if(dup>=1){
+        printf("---%d---\n",dup);
         return 1;//Van duplikalt
     }
     return 0;
@@ -79,10 +80,10 @@ int main(int argc, char* argv[]) {
             // Ha az argumentum érvénytelen, akkor kiírjuk a használati útmutatót
             printf("Hiba: Érvénytelen argumentum! Kérjük, használja a következő opciókat:\n");
             printf("chart [--version | --help] [-send | -recieve] [-file | -socket]\n");
+            exit(1);
         }
     }
 
-    printf("%d",send_mode);
 
     printf ("Program mode: ");
     printf(send_mode == 1 ? "Send Mode\n" : "Receive Mode\n");
