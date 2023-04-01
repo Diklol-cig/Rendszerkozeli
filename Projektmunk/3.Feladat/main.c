@@ -6,8 +6,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-char bitmap[1000];
+char bitmap[10000000];
 int file_size_bytes;
+int padding;
+int image_width;
+int file_size_bytes;
+int center_line;
 
 void write_int(int *p, int value){
     p[0] = value;
@@ -16,11 +20,24 @@ void write_int(int *p, int value){
     p[3] = value >> 24;
 }
 
+int int_pow(int a, int b) {
+    int result = 1;
+    while (b > 0) {
+        if (b & 1) {
+            result *= a;
+        }
+        a *= a;
+        b >>= 1;
+    }
+    return result;
+}
 
-void BMPmake(int length){
-    int padding = 32-(length%32);
-    int image_length = length+padding;
-    int file_size_bytes = (image_length*length)+62;
+void BMPcreator(int *Values, int NumValues){
+    padding = 32-(NumValues%32);
+    image_width = NumValues;
+    printf("%d\n", image_width);
+    file_size_bytes = (image_width*NumValues/8)+62;
+    printf("File size in bytes: %d\n", file_size_bytes);
     // -- FILE HEADER -- //
     // bitmap signature
     bitmap[0] = 'B';
@@ -35,9 +52,9 @@ void BMPmake(int length){
     // header size
     write_int(&bitmap[14], 40);
     // width of the image
-    write_int(&bitmap[18], length);
+    write_int(&bitmap[18], image_width);
     // height of the image
-    write_int(&bitmap[22], length);
+    write_int(&bitmap[22], image_width);
     // reserved field
     bitmap[26] = 0x01;
     bitmap[27] = 0x00;
@@ -68,6 +85,29 @@ void BMPmake(int length){
     bitmap[59] = 0xFF;
     bitmap[60] = 0x00;
     bitmap[61] = 0xFF;
+
+
+    int line_bit_count = image_width + padding;
+    center_line = image_width/2+1;
+    printf("Nyilvan a loop elott bassza meg magat ez a szar");
+    
+    for(int i = 0; i<NumValues; i++){
+
+        char mask = (char)int_pow(2, 7 - (i % 8));
+
+        int current_line_offset = center_line + Values[i];
+
+        int offset_line_index = ((image_width + padding)/8) * current_line_offset;
+
+        int current_byte_index = offset_line_index + ( i / 8 );
+
+        bitmap[62 + current_byte_index] |= mask;
+    }
+    
+    int f = open("chart.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+    
+    write(f, bitmap, file_size_bytes); //File size in bytes
+    close(f);
 }
 
 int calculate_size(int min, int sec){
@@ -139,21 +179,14 @@ int Measurement(int **p_values)
 int main ()
 {
     srand(time(NULL));
-    int *values=NULL;   
+    int *values=NULL;    
     int length=Measurement(&values);     
     printf("The length of the array is: %d\n",length);
-    BMPmake(length);
+    BMPcreator(values, length);
     for(int i=0;i<length;i++)
     {
         printf("%d ",values[i]);
     }   
-    free(values);
-    printf("\n");
-
-    int f = open("output.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
-    write(f, bitmap, file_size_bytes); //File size in bytes
-    close(f);
-    free(bitmap);
-
+    puts("");
   return 0;
 }
