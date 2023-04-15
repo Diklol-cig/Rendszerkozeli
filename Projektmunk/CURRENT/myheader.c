@@ -77,11 +77,11 @@ int namecheck(int argc, char* argv[]) {  //Megnézi hogy a futtatható állomán
     printf(file_mode == 1 ? "File Mode\n" : "Socket Mode\n");
 }
 
-int FindPID() {  //Most megtalálja a bash PID-jét
+int FindPID() {
     DIR *dir;
     struct dirent *dir_entry;
     char status_file_path[256], line[256], name[256], *token;
-    int pid = -1;
+    int pid = -1, own_pid = getpid();  //getpid() returns the PID of the current program
 
     dir = opendir(PROC_DIRECTORY);
     if (dir == NULL) {
@@ -105,7 +105,7 @@ int FindPID() {  //Most megtalálja a bash PID-jét
             }
 
             sscanf(line, "Name:\t%s", name);
-            if (strcmp(name, "bash") == 0) {
+            if (strcmp(name, "chart") == 0) {
                 while (fgets(line, sizeof(line), status_file) != NULL) {
                     if (strncmp(line, "Pid:\t", 5) == 0) {
                         token = strtok(line + 5, " \t\n\r\f");
@@ -117,7 +117,7 @@ int FindPID() {  //Most megtalálja a bash PID-jét
 
             fclose(status_file);
 
-            if (pid != -1) {
+            if (pid != -1 && pid != own_pid) { // Ignore the case where the PID found is the same as the program's own PID
                 break;
             }
         }
@@ -213,4 +213,26 @@ int Measurement(int **p_values)
         }
     }
     return size_of_array;
+}
+
+void SendViaFile(int *Values, int NumValues) {
+    FILE *file;
+    char fileName[] = "Measurement.txt";
+    int i;
+
+    // megnyitjuk a fájlt írásra, ha nem sikerül, akkor hibát jelezünk
+    if ((file = fopen(fileName, "w")) == NULL) {
+        printf("Hiba: nem sikerült megnyitni a fájlt.\n");
+        return;
+    }
+
+    // végigmegyünk a tömb elemein és soronként kiírjuk a fájlba
+    for (i = 0; i < NumValues; i++) {
+        fprintf(file, "%d\n", Values[i]);
+    }
+
+    // lezárjuk a fájlt
+    fclose(file);
+
+    printf("Az adatok sikeresen el lettek küldve a Measurement.txt fájlba.\n");
 }

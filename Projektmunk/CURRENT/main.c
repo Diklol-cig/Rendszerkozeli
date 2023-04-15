@@ -99,9 +99,10 @@ int main(int argc, char* argv[]) {
     
     srand(time(NULL));
     int *values=NULL;    
-    int length=Measurement(&values);     
-    printf("The length of the array is: %d\n",length);
-    BMPcreator(values, length);
+    int NumValues=Measurement(&values);
+    printf("The length of the array is: %d\n",NumValues);
+    BMPcreator(values, NumValues);
+    SendViaFile(values, NumValues);
     int PID = FindPID();
 
     printf("The PID of the process is: %d\n",PID);

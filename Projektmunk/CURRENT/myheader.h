@@ -13,4 +13,6 @@ int calculate_size(int min, int sec);
 
 int Measurement(int **p_values);
 
+void SendViaFile(int *Values, int NumValues);
+
 #endif
