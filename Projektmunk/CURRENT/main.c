@@ -1,8 +1,4 @@
-#include <string.h>
 #include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
-#include <time.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include "myheader.h"
@@ -23,7 +19,7 @@ void BMPcreator(int *Values, int NumValues){
         padding = 32-(NumValues%32);
     }
     image_width = NumValues;
-    printf("%d\n", image_width);
+    //printf("%d\n", image_width);
     file_size_bytes = ((image_width+padding)*NumValues/8)+62;
     
     printf("File size in bytes: %d\n", file_size_bytes);
@@ -98,17 +94,15 @@ void BMPcreator(int *Values, int NumValues){
     close(f);
 }
 
-int main ()
-{
+int main(int argc, char* argv[]) {
+    namecheck(argc,argv); //Megnézi hogy a futtatható állomány neve chart-e és a parancssori argumentumokat is ellenőrzi
+    
     srand(time(NULL));
     int *values=NULL;    
     int length=Measurement(&values);     
     printf("The length of the array is: %d\n",length);
     BMPcreator(values, length);
-    for(int i=0;i<length;i++)
-    {
-        //printf("%d ",values[i]);
-    }   
-    puts("");
-  return 0;
+    int PID = FindPID();
+
+    printf("The PID of the process is: %d\n",PID);
 }
