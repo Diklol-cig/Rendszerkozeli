@@ -93,14 +93,9 @@ int FindPID() {
         if (dir_entry->d_type == DT_DIR && isdigit(dir_entry->d_name[0])) {
             snprintf(status_file_path, sizeof(status_file_path), "%s/%s/%s", PROC_DIRECTORY, dir_entry->d_name, STATUS_FILE);
             FILE *status_file = fopen(status_file_path, "r");
+            
             if (status_file == NULL) {
                 perror("fopen failed");
-                continue;
-            }
-
-            if (fgets(line, sizeof(line), status_file) == NULL) {
-                perror("fgets failed");
-                fclose(status_file);
                 continue;
             }
 
