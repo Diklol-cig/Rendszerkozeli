@@ -95,15 +95,17 @@ void BMPcreator(int *Values, int NumValues){
 }
 
 int main(int argc, char* argv[]) {
-    namecheck(argc,argv); //Megnézi hogy a futtatható állomány neve chart-e és a parancssori argumentumokat is ellenőrzi
-    
+    if (namecheck(argc,argv) == 1){
+        exit(1);
+    } //Megnézi hogy a futtatható állomány neve chart-e és a parancssori argumentumokat is ellenőrzi
+    modecheck(argc,argv); //Megnézi hogy a parancssori argumentumok jók-e
     srand(time(NULL));
     int *values=NULL;    
     int NumValues=Measurement(&values);
-    printf("The length of the array is: %d\n",NumValues);
+    //printf("The length of the array is: %d\n",NumValues);
     BMPcreator(values, NumValues);
     SendViaFile(values, NumValues);
     int PID = FindPID();
 
-    printf("The PID of the process is: %d\n",PID);
+    //printf("The PID of the process is: %d\n",PID);
 }

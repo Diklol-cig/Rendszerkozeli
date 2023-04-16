@@ -8,11 +8,14 @@
 #include <math.h>
 #include <time.h>
 #include <fcntl.h>
+#include <signal.h>
+
 
 #define PROC_DIRECTORY "/proc"
 #define STATUS_FILE "status"
 
 int namecheck(int argc, char* argv[]) {  //Megnézi hogy a futtatható állomány neve chart-e és a parancssori argumentumokat is ellenőrzi
+    
     // Ellenőrizzük, hogy a program neve "chart" legyen
     if (strcmp(argv[0], "./chart") != 0) {
         printf("Hiba: A futtatható állomány neve 'chart' kell legyen!\n");
@@ -26,8 +29,8 @@ int namecheck(int argc, char* argv[]) {  //Megnézi hogy a futtatható állomán
             printf("Chart program verzió 1.0\n");
             printf("Elkészült: 2023. február 15.\n");
             printf("Fejlesztő: Dáni L\n");
-            return 0;
-        } else if (strcmp(argv[1], "--help") == 0) {
+            return 1;
+        } else if (strcmp(argv[1], "--help") == 0|| checkdup(argc, argv)) {
             // Kiírjuk a program használati útmutatóját
             printf("Chart program használata:\n");
             printf("chart [--version | --help] [-send | -receive] [-file | -socket]\n");
@@ -38,10 +41,31 @@ int namecheck(int argc, char* argv[]) {  //Megnézi hogy a futtatható állomán
             printf("-receive: A program fogadóként működik.\n");
             printf("-file: A kommunikáció fájl segítségével történik.\n");
             printf("-socket: A kommunikáció socketen keresztül történik.\n");
-            return 0;
+            return 1;
         }
     }
+}
 
+int checkdup(int argc, char *argv[]){
+    int dup = 0;
+    for (int i = 1; i < argc -1; i++) {
+        for(int j = i + 1; j < argc; j++) {
+            {
+                if (strcmp(argv[i], argv[j]) == 0) {
+                    dup++;
+                }
+            }
+        }
+    }
+    if(dup>=1){
+        //printf("---%d---\n",dup);
+        return 1;//Van duplikalt
+    }
+    return 0;
+}
+
+int modecheck(int argc, char* argv[]) { //Megnézi hogy a program milyen módban fut
+    
     // Az alapértelmezett üzemmód a küldő üzemmód
     int send_mode = 1;
     int receive_mode = 0;
@@ -73,7 +97,7 @@ int namecheck(int argc, char* argv[]) {  //Megnézi hogy a futtatható állomán
 
     printf ("Program mode: ");
     printf(send_mode == 1 ? "Send Mode\n" : "Receive Mode\n");
-    printf("Kommunkiacios mode: ");
+    printf("Communication mode: ");
     printf(file_mode == 1 ? "File Mode\n" : "Socket Mode\n");
 }
 
@@ -119,6 +143,13 @@ int FindPID() {
     }
 
     closedir(dir);
+
+    if (pid == -1) {
+        fprintf(stderr, "Hiba: Nem találtunk vevő üzemmódban futó folyamatot.\n");
+        exit(1);
+    } else {
+        kill(pid, SIGUSR1);
+    }
 
     return pid;
 }
@@ -230,4 +261,38 @@ void SendViaFile(int *Values, int NumValues) {
     fclose(file);
 
     printf("Az adatok sikeresen el lettek küldve a Measurement.txt fájlba.\n");
+}
+
+void ReceiveViaFile(int sig) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), "%s/%s", getenv("HOME"), "Measurement.txt");
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Could not open file %s\n", filename);
+        exit(1);
+    }
+
+    float *data = NULL;
+    size_t data_size = 0;
+    int data_count = 0;
+
+    char line[256];
+    while (fgets(line, sizeof(line), file)) {
+        float value = strtof(line, NULL);
+        if (data_count >= data_size) {
+            data_size += 10;
+            data = realloc(data, data_size * sizeof(float));
+            if (data == NULL) {
+                fprintf(stderr, "Could not allocate memory\n");
+                exit(1);
+            }
+        }
+        data[data_count++] = value;
+    }
+
+    fclose(file);
+
+    BMPcreator(data, data_count);
+
+    free(data);
 }

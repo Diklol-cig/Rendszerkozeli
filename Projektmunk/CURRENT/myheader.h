@@ -15,4 +15,6 @@ int Measurement(int **p_values);
 
 void SendViaFile(int *Values, int NumValues);
 
+int checkdup(int argc, char *argv[]);
+
 #endif
