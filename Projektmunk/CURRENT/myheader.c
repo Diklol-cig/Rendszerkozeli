@@ -9,10 +9,107 @@
 #include <time.h>
 #include <fcntl.h>
 #include <signal.h>
+#include<unistd.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
 
 
 #define PROC_DIRECTORY "/proc"
 #define STATUS_FILE "status"
+#define PORT_NO 3333                 // The port on which the server is listening
+
+
+void BMPcreator(int *Values, int NumValues){
+    int padding = 0;
+    int image_width = NumValues;
+    int file_size_bytes;
+    int center_line;
+    
+    if(image_width%32==0){
+        
+        file_size_bytes=(image_width*image_width)/8+62;
+    }
+    else{
+        file_size_bytes=((image_width+(32-(image_width%32)))*(image_width))/8+62;
+        padding=32-(image_width%32);
+    }
+    unsigned char* bitmap = (unsigned char*)calloc(file_size_bytes,1*sizeof(char));
+
+
+    printf("%d\n", image_width);
+    
+    printf("File size in bytes: %d\n", file_size_bytes);
+    // -- FILE HEADER -- //
+    // bitmap signature
+    bitmap[0] = 'B';
+    bitmap[1] = 'M';
+    // file size
+    write_int(&bitmap[2], file_size_bytes);
+    // reserved field (in hex. 00 00 00 00)
+    write_int(&bitmap[6], 0);
+    // offset of pixel data inside the image
+    write_int(&bitmap[10], 62);
+    // -- BITMAP HEADER -- //
+    // header size
+    write_int(&bitmap[14], 40);
+    // width of the image
+    write_int(&bitmap[18], image_width);
+    // height of the image
+    write_int(&bitmap[22], image_width);
+    // reserved field
+    bitmap[26] = 0x01;
+    bitmap[27] = 0x00;
+    // number of bits per pixel
+    bitmap[28] = 0x01;
+    bitmap[29] = 0x00;
+    // compression method (no compression here)
+    for(int i = 30; i < 34; i++) bitmap[i] = 0; 
+    // size of pixel data
+    bitmap[34] = 0;
+    bitmap[35] = 0;
+    bitmap[36] = 0;
+    bitmap[37] = 0;
+//-----------------------------------------TO_DO-----------------------------------------
+    // horizontal resolution of the image - pixels per meter (2835)
+    write_int(&bitmap[38], 3937);
+    // vertical resolution of the image - pixels per meter (2835)
+    write_int(&bitmap[42], 3937);
+//-----------------------------------------TO_DO-----------------------------------------
+    write_int(&bitmap[46], 0);
+    write_int(&bitmap[50], 0);
+    // color pallette information
+    bitmap[54] = 0xCC;
+    bitmap[55] = 0x00;
+    bitmap[56] = 0xCC;
+    bitmap[57] = 0xFF;
+    bitmap[58] = 0x00;
+    bitmap[59] = 0xFF;
+    bitmap[60] = 0x00;
+    bitmap[61] = 0xFF;
+
+
+    int line_bit_count = image_width + padding;
+    center_line = image_width/2+1;
+    
+    for(int i = 0; i<NumValues; i++){
+
+        char mask = (char)int_pow(2, 7 - (i % 8));
+
+        int current_line_offset = center_line + Values[i];
+
+        int offset_line_index = ((image_width + padding)/8) * current_line_offset;
+
+        int current_byte_index = offset_line_index + ( i / 8 );
+
+        bitmap[62 + current_byte_index] |= mask;
+    }
+    
+    int f = open("chart.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+    
+    write(f, bitmap, file_size_bytes); //File size in bytes
+    close(f);
+    free(bitmap);
+}
 
 int namecheck(int argc, char* argv[]) {  //Megnézi hogy a futtatható állomány neve chart-e és a parancssori argumentumokat is ellenőrzi
     
@@ -64,28 +161,70 @@ int checkdup(int argc, char *argv[]){
     return 0;
 }
 
-int modecheck(int argc, char* argv[]) { //Megnézi hogy a program milyen módban fut
+void signal_handeler(int sig){
+  if(sig == SIGUSR1){
+    ReceiveViaFile(sig);
+  }
+  else
+  {
+    fprintf(stderr,"Error: Signal not found");
+    exit(7);
+  }
+}
+
+void execute_commands(int modes[]){
+    int NumValues;
+    srand(time(NULL));
+    int *values=NULL;    
+
+    if(modes[0] == 1 && modes[2] == 1){
+        printf("Kuldo fajl\n");
+        NumValues=Measurement(&values);
+        SendViaFile(values,NumValues);
+        free(values);
+    }
+    if(modes[0] == 1 && modes[3] == 1){
+        printf("Kuldo socket\n");
+        NumValues=Measurement(&values);
+        SendViaSocket(values,NumValues);
+
+    }    
+    if(modes[1] == 1 && modes[2] == 1){
+        printf("Fogado fajl\n");
+        while (1)
+        {
+      printf("Waiting for signal\n");
+      printf("pid_ %d\n", getpid());
+      signal(SIGUSR1,signal_handeler);
+      pause();
+        }
+    }
+    if(modes[1] == 1 && modes[3] == 1){
+        printf("Fogado socket\n");
+        ReceiveViaSocket();
+    }
+}
+
+void modecheck(int *modes, int argc, char* argv[]) { //Megnézi hogy a program milyen módban fut
     
     // Az alapértelmezett üzemmód a küldő üzemmód
-    int send_mode = 1;
-    int receive_mode = 0;
 
     // Az alapértelmezett kommunikációs mód a fájl
-    int file_mode = 1;
-    int socket_mode = 0;
 
     // Ellenőrizzük a további argumentumokat
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-send") == 0) {
-            send_mode = 1;
+            modes[0] = 1;
+            modes[1] = 0;
         } else if (strcmp(argv[i], "-receive") == 0) {
-            send_mode = 0;
-            receive_mode = 1;
+            modes[0] = 0;
+            modes[1] = 1;
         } else if (strcmp(argv[i], "-file") == 0) {
-            file_mode = 1;
+            modes[2] = 1;
+            modes[3] = 0;
         } else if (strcmp(argv[i], "-socket") == 0) {
-            file_mode = 0;
-            socket_mode = 1;
+            modes[2] = 0;
+            modes[3] = 1;
         } else {
             // Ha az argumentum érvénytelen, akkor kiírjuk a használati útmutatót
             printf("Hiba: Érvénytelen argumentum! Kérjük, használja a következő opciókat:\n");
@@ -93,68 +232,56 @@ int modecheck(int argc, char* argv[]) { //Megnézi hogy a program milyen módban
         }
     }
 
-    //printf("%d",send_mode);
-
     printf ("Program mode: ");
-    printf(send_mode == 1 ? "Send Mode\n" : "Receive Mode\n");
+    printf(modes[0] == 1 ? "Send Mode\n" : "Receive Mode\n");
     printf("Communication mode: ");
-    printf(file_mode == 1 ? "File Mode\n" : "Socket Mode\n");
+    printf(modes[2] == 1 ? "File Mode\n" : "Socket Mode\n");
 }
 
-int FindPID() {
-    DIR *dir;
-    struct dirent *dir_entry;
-    char status_file_path[256], line[256], name[256], *token;
-    int pid = -1, own_pid = getpid();  //getpid() returns the PID of the current program
-
-    dir = opendir(PROC_DIRECTORY);
-    if (dir == NULL) {
-        perror("opendir failed");
-        return -1;
-    }
-
-    while ((dir_entry = readdir(dir)) != NULL) {
-        if (dir_entry->d_type == DT_DIR && isdigit(dir_entry->d_name[0])) {
-            snprintf(status_file_path, sizeof(status_file_path), "%s/%s/%s", PROC_DIRECTORY, dir_entry->d_name, STATUS_FILE);
-            FILE *status_file = fopen(status_file_path, "r");
-            
-            if (status_file == NULL) {
-                perror("fopen failed");
-                continue;
-            }
-
-            sscanf(line, "Name:\t%s", name);
-            if (strcmp(name, "chart") == 0) {
-                while (fgets(line, sizeof(line), status_file) != NULL) {
-                    if (strncmp(line, "Pid:\t", 5) == 0) {
-                        token = strtok(line + 5, " \t\n\r\f");
-                        pid = atoi(token);
-                        break;
-                    }
-                }
-            }
-
-            fclose(status_file);
-
-            if (pid != -1 && pid != own_pid) { // Ignore the case where the PID found is the same as the program's own PID
-                break;
-            }
-        }
-    }
-
-    closedir(dir);
-
-    if (pid == -1) {
-        fprintf(stderr, "Hiba: Nem találtunk vevő üzemmódban futó folyamatot.\n");
-        exit(1);
-    } else {
-        kill(pid, SIGUSR1);
-    }
-
-    return pid;
+char* concat(const char *s1, const char *s2) 
+{ 
+     char *result = malloc(strlen(s1) + strlen(s2) + 1); 
+     strcpy(result, s1); 
+     strcat(result, s2); 
+     return result; 
 }
 
-void write_int(int *p, int value){ //Little endianba írja az inteket
+int FindPID(){ 
+   DIR *d; 
+   int receiver_pid =-1; 
+   struct dirent *entry; 
+   d=opendir("/proc"); 
+   char * dirname=NULL; 
+   char * filename=NULL; 
+   while((entry=readdir(d))!=NULL){ 
+     if((*entry).d_name[0]>'0' && (*entry).d_name[0]<'9'){ 
+
+         dirname= concat("/proc/",(*entry).d_name); 
+         filename= concat(dirname,"/status"); 
+         // printf("%s\n",filename ); 
+         char first_line_buffer[256]; 
+         FILE * fp = fopen(filename, "r"); 
+         fscanf(fp, "Name:\t%s\n", first_line_buffer); 
+         // printf("%s\n\n", first_line_buffer); 
+         if(strcmp(first_line_buffer,"chart")==0 && getpid() != atoi((*entry).d_name)){ 
+             receiver_pid = atoi((*entry).d_name); 
+         } 
+         else{ 
+           continue; 
+         } 
+         fclose(fp); 
+         free(dirname); 
+         free(filename); 
+     } 
+    
+   } 
+   closedir(d); 
+   free(dirname); 
+   free(filename); 
+   return receiver_pid; 
+}
+
+void write_int(char *p, int value){ //Little endianba írja az inteket
 
     p[0] = value;
     p[1] = value >> 8;
@@ -242,21 +369,30 @@ int Measurement(int **p_values)
 }
 
 void SendViaFile(int *Values, int NumValues) {
-    FILE *file;
-    char fileName[] = "Measurement.txt";
-    int i;
+    pid_t pid = FindPID();
+        printf("FINDPID: %d\n SAJAT: %d\n", pid, getpid());
+    if(pid == -1){
+        fprintf(stderr,"Nincsen receive modeban chart program!");
+        exit(3);
+    }
+
+
+
+    char *fileName = concat(getenv("HOME"), "/Measurement.txt");
+    FILE *file = fopen(fileName, "w");
 
     // megnyitjuk a fájlt írásra, ha nem sikerül, akkor hibát jelezünk
-    if ((file = fopen(fileName, "w")) == NULL) {
+    if (file == NULL) {
         printf("Hiba: nem sikerült megnyitni a fájlt.\n");
-        return;
+        exit(2);
     }
 
     // végigmegyünk a tömb elemein és soronként kiírjuk a fájlba
-    for (i = 0; i < NumValues; i++) {
+    for (int i = 0; i < NumValues; i++) {
         fprintf(file, "%d\n", Values[i]);
     }
 
+    kill(pid, SIGUSR1);
     // lezárjuk a fájlt
     fclose(file);
 
@@ -264,35 +400,84 @@ void SendViaFile(int *Values, int NumValues) {
 }
 
 void ReceiveViaFile(int sig) {
-    char filename[256];
-    snprintf(filename, sizeof(filename), "%s/%s", getenv("HOME"), "Measurement.txt");
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        fprintf(stderr, "Could not open file %s\n", filename);
-        exit(1);
+    char *fileName = concat(getenv("HOME"), "/Measurement.txt");
+    FILE *file = fopen(fileName, "r");
+
+    int *data = NULL;
+
+
+    int tmp;
+    int count = 0;
+
+    while(fscanf(file, "%d", &tmp) != EOF){
+        count++;
+        data = realloc(data, count*sizeof(int));
+        data[count-1] = tmp;
+
     }
 
-    float *data = NULL;
-    size_t data_size = 0;
-    int data_count = 0;
-
-    char line[256];
-    while (fgets(line, sizeof(line), file)) {
-        float value = strtof(line, NULL);
-        if (data_count >= data_size) {
-            data_size += 10;
-            data = realloc(data, data_size * sizeof(float));
-            if (data == NULL) {
-                fprintf(stderr, "Could not allocate memory\n");
-                exit(1);
-            }
-        }
-        data[data_count++] = value;
+    for(int i = 0; i < count; i++){
+        printf("%d, ", data[i]);
     }
+    puts("");
 
-    fclose(file);
-
-    BMPcreator(data, data_count);
+    BMPcreator(data, count);
 
     free(data);
 }
+
+void ReceiveViaSocket(){  //Szerver
+
+}
+
+void SendViaSocket(int *Values, int NumValues){  //Kliens
+    int s;                            // socket ID
+    int bytes;                        // received/sent bytes
+    int flag;                         // transmission flag
+    char on;                          // sockopt option
+    int received_values;              // received values
+    int server_size;         // length of the sockaddr_in server
+    struct sockaddr_in server;        // address of server
+
+    /************************ Initialization ********************/
+    on   = 1;
+    flag = 0;
+    server.sin_family      = AF_INET;
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_port        = htons(PORT_NO);
+    server_size = sizeof server;
+    
+    s = socket(AF_INET, SOCK_DGRAM, 0 );
+    if ( s < 0 ) {
+        fprintf(stderr, "Socket creation error.\n");
+        exit(4);
+        }
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
+    setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof on);
+
+    bytes = sendto(s, &NumValues,sizeof(int), flag, (struct sockaddr *) &server, server_size);
+    if ( bytes <= 0 ) {
+        fprintf(stderr, "Sending error.\n");
+        exit(4);
+        }
+
+    bytes = recvfrom(s, &received_values ,sizeof(int), flag, (struct sockaddr *) &server, &server_size);
+    if ( bytes < 0 ) {
+        fprintf(stderr, "Receiving error.\n");
+        exit(4);
+        }
+
+    if(NumValues != received_values) {
+    fprintf(stderr, "Nem egyenloek");
+        exit(4);
+    }
+
+    printf("\nConnection is ok\n");
+
+    bytes = sendto(s, Values,sizeof(int)*NumValues, flag, (struct sockaddr *) &server, server_size);
+    if ( bytes <= 0 ) {
+        fprintf(stderr, "Sending error.\n");
+        exit(4);
+        }
+}
+
