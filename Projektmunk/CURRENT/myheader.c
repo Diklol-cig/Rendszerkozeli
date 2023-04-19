@@ -162,14 +162,18 @@ int checkdup(int argc, char *argv[]){
 }
 
 void signal_handeler(int sig){
-  if(sig == SIGUSR1){
-    ReceiveViaFile(sig);
-  }
-  else
-  {
-    fprintf(stderr,"Error: Signal not found");
-    exit(7);
-  }
+    if(sig == SIGUSR1){
+        ReceiveViaFile(sig);
+    }
+    else if(sig == SIGINT || sig == SIGTERM){
+        printf("Server is terminated!\n");
+        exit(0);    
+        }
+    else
+    {
+        fprintf(stderr,"Error: Signal not found");
+        exit(7);
+    }
 }
 
 void execute_commands(int modes[]){
@@ -187,7 +191,6 @@ void execute_commands(int modes[]){
         printf("Kuldo socket\n");
         NumValues=Measurement(&values);
         SendViaSocket(values,NumValues);
-
     }    
     if(modes[1] == 1 && modes[2] == 1){
         printf("Fogado fajl\n");
@@ -200,8 +203,9 @@ void execute_commands(int modes[]){
         }
     }
     if(modes[1] == 1 && modes[3] == 1){
-        printf("Fogado socket\n");
         ReceiveViaSocket();
+        printf("Fogado socket\n");
+        
     }
 }
 
@@ -426,10 +430,6 @@ void ReceiveViaFile(int sig) {
     free(data);
 }
 
-void ReceiveViaSocket(){  //Szerver
-
-}
-
 void SendViaSocket(int *Values, int NumValues){  //Kliens
     int s;                            // socket ID
     int bytes;                        // received/sent bytes
@@ -480,4 +480,78 @@ void SendViaSocket(int *Values, int NumValues){  //Kliens
         exit(4);
         }
 }
+
+void ReceiveViaSocket(){  //Szerver
+    
+    printf("Anyad");
+    int s;
+    int *Values = NULL;
+    int NumValues;
+
+    /************************ Declarations **********************/
+    int bytes;                        // received/sent bytes
+    int err;                          // error code
+    int flag;                         // transmission flag
+    char on;                          // sockopt option
+    int received_values;              // received values
+    unsigned int server_size;         // length of the sockaddr_in server
+    unsigned int client_size;         // length of the sockaddr_in client
+    struct sockaddr_in server;        // address of server
+    struct sockaddr_in client;        // address of client
+
+    /************************ Initialization ********************/
+    on   = 1;
+    flag = 0;
+    server.sin_family      = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port        = htons(PORT_NO);
+    server_size = sizeof (server);
+    client_size = sizeof (client);
+
+    /************************ Creating socket *******************/
+    s = socket(AF_INET, SOCK_DGRAM, 0 );
+
+    if ( s < 0 ) {
+        fprintf(stderr, "Socket creation error.\n");
+        exit(2);
+        }
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
+    setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof on);
+
+    err = bind(s, (struct sockaddr *) &server, server_size);
+    if ( err < 0 ) {
+        fprintf(stderr,"Binding error.\n");
+        exit(3);
+    }
+
+    while(1){
+        printf("Waiting for connection...\n");
+        bytes = recvfrom(s, &NumValues, sizeof(int), flag, (struct sockaddr *) &client, &client_size );
+        if ( bytes < 0 ) {
+            fprintf(stderr, "Receiving error.\n");
+            exit(4);
+        }
+        printf("The array size is %d\n", NumValues);
+
+        Values = (int*)malloc(NumValues*sizeof(int));
+
+        bytes = sendto(s, &NumValues, sizeof(int), flag, (struct sockaddr *) &client, client_size);
+
+        if ( bytes <= 0 ) {
+            fprintf(stderr, "Sending error.\n");
+            exit(4);
+        }
+
+        bytes = recvfrom(s, Values, sizeof(int)*NumValues, flag, (struct sockaddr *) &client, &client_size );
+        for(int i = 0; i < NumValues; i++){
+            printf("%d, ", Values[i]);
+        }
+        BMPcreator(Values, NumValues);
+        puts("");
+    }
+
+
+}
+
+
 
