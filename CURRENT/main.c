@@ -1,11 +1,17 @@
+#include "myheader.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
+#include <string.h>
+#include <dirent.h>
 #include <sys/stat.h>
-#include <sys/stat.h>
-#include <sys/stat.h>
+#include <ctype.h>
+#include <math.h>
 #include <time.h>
-#include "myheader.h"
+#include <fcntl.h>
+#include <signal.h>
+#include<unistd.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
 
 
 int main(int argc, char* argv[]) {
@@ -18,7 +24,6 @@ int main(int argc, char* argv[]) {
     modecheck(modes, argc, argv); //Megnézi hogy a parancssori argumentumok jók-e
     srand(time(NULL));
     execute_commands(modes);
-
 
 
   /*   //printf("The length of the array is: %d\n",NumValues);

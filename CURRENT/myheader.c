@@ -10,10 +10,14 @@
 #include <fcntl.h>
 #include <signal.h>
 #include<unistd.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
 
 
 #define PROC_DIRECTORY "/proc"
 #define STATUS_FILE "status"
+#define PORT_NO 3333                 // The port on which the server is listening
+
 
 void BMPcreator(int *Values, int NumValues){
     int padding = 0;
@@ -181,7 +185,9 @@ void execute_commands(int modes[]){
     }
     if(modes[0] == 1 && modes[3] == 1){
         printf("Kuldo socket\n");
-        //send_socket();
+        NumValues=Measurement(&values);
+        SendViaSocket(values,NumValues);
+
     }    
     if(modes[1] == 1 && modes[2] == 1){
         printf("Fogado fajl\n");
@@ -195,7 +201,7 @@ void execute_commands(int modes[]){
     }
     if(modes[1] == 1 && modes[3] == 1){
         printf("Fogado socket\n");
-        //receive_socket();
+        ReceiveViaSocket();
     }
 }
 
@@ -415,5 +421,63 @@ void ReceiveViaFile(int sig) {
     }
     puts("");
 
+    BMPcreator(data, count);
+
     free(data);
 }
+
+void ReceiveViaSocket(){  //Szerver
+
+}
+
+void SendViaSocket(int *Values, int NumValues){  //Kliens
+    int s;                            // socket ID
+    int bytes;                        // received/sent bytes
+    int flag;                         // transmission flag
+    char on;                          // sockopt option
+    int received_values;              // received values
+    int server_size;         // length of the sockaddr_in server
+    struct sockaddr_in server;        // address of server
+
+    /************************ Initialization ********************/
+    on   = 1;
+    flag = 0;
+    server.sin_family      = AF_INET;
+    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_port        = htons(PORT_NO);
+    server_size = sizeof server;
+    
+    s = socket(AF_INET, SOCK_DGRAM, 0 );
+    if ( s < 0 ) {
+        fprintf(stderr, "Socket creation error.\n");
+        exit(4);
+        }
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
+    setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof on);
+
+    bytes = sendto(s, &NumValues,sizeof(int), flag, (struct sockaddr *) &server, server_size);
+    if ( bytes <= 0 ) {
+        fprintf(stderr, "Sending error.\n");
+        exit(4);
+        }
+
+    bytes = recvfrom(s, &received_values ,sizeof(int), flag, (struct sockaddr *) &server, &server_size);
+    if ( bytes < 0 ) {
+        fprintf(stderr, "Receiving error.\n");
+        exit(4);
+        }
+
+    if(NumValues != received_values) {
+    fprintf(stderr, "Nem egyenloek");
+        exit(4);
+    }
+
+    printf("\nConnection is ok\n");
+
+    bytes = sendto(s, Values,sizeof(int)*NumValues, flag, (struct sockaddr *) &server, server_size);
+    if ( bytes <= 0 ) {
+        fprintf(stderr, "Sending error.\n");
+        exit(4);
+        }
+}
+

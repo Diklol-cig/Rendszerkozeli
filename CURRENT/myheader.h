@@ -31,4 +31,8 @@ void ReceiveViaFile(int sig);
 
 void SendViaFile(int *Values, int NumValues);
 
+void SendViaSocket(int *Values, int NumValues);
+
+void ReceiveViaSocket();
+
 #endif
