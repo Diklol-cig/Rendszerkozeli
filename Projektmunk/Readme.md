@@ -20,4 +20,12 @@ Opcionális kapcsolók:
 
     --help
     --version
+
+Program használata:
+    2 terminál megnyitása
+    A, Terminál
+    ./chart -send [-file|-socket]
+    B, Terminál
+    ./chart -receive [-file|-socket] //Az A, Terminálban kiválasztott mód
     
+Ezek után a számítások el lesznek végezve, a fájlok továbbítv lesznek. Ezek után a program 0-ás hibakóddal leáll
