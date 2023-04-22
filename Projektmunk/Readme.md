@@ -22,6 +22,7 @@ Opcionális kapcsolók:
     --version
 
 Program használata:
+
     2 terminál megnyitása
     A, Terminál
     ./chart -send [-file|-socket]
