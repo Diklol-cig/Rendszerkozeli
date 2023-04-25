@@ -3,6 +3,8 @@
 
 int namecheck(int argc, char* argv[]);
 
+void write_help();
+
 int FindPID();
 
 char* concat(const char *s1,const char *s2);
