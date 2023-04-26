@@ -254,20 +254,20 @@ void execute_commands(int modes[])
 
     if (modes[0] == 1 && modes[2] == 1)
     {
-        printf("Kuldo fajl\n");
+        //printf("Kuldo fajl\n");
         NumValues = Measurement(&values);
         SendViaFile(values, NumValues);
         free(values);
     }
     if (modes[0] == 1 && modes[3] == 1)
     {
-        printf("Kuldo socket\n");
+        //printf("Kuldo socket\n");
         NumValues = Measurement(&values);
         SendViaSocket(values, NumValues);
     }
     if (modes[1] == 1 && modes[2] == 1)
     {
-        printf("Fogado fajl\n");
+        //printf("Fogado fajl\n");
         while (1)
         {
             printf("Waiting for signal\n");
@@ -279,7 +279,7 @@ void execute_commands(int modes[])
     if (modes[1] == 1 && modes[3] == 1)
     {
         ReceiveViaSocket();
-        printf("Fogado socket\n");
+        //printf("Fogado socket\n");
     }
 }
 
