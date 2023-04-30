@@ -95,15 +95,15 @@ void BMPcreator(int *Values, int NumValues)
     for (int i = 0; i < NumValues; i++)
     {
 
-        char mask = (char)int_pow(2, 7 - (i % 8));
+        char mask = (char)int_pow(2, 7 - (i % 8)); //The mask variable determines which bit to set during the current iteration. Using the int_pow function, mask takes on the powers of 2 from 128 down to 1 based on the value of 7 minus i modulo 8.
 
-        int current_line_offset = center_line + Values[i];
+        int curr_line_offset = center_line + Values[i];  //The curr_line_offset variable determines the vertical line on the image that should be shifted by the Values[i] value. This is necessary because the bitmap has no center point.
 
-        int offset_line_index = ((image_width + padding) / 8) * current_line_offset;
+        int offset_index = ((image_width + padding) / 8) * curr_line_offset; //The offset_index variable determines the horizontal row within the image to which the current byte needs to be added. The padding variable represents the pad added to the data for each row of bytes in the bitmap.
 
-        int current_byte_index = offset_line_index + (i / 8);
+        int curr_byte_index = offset_index + (i / 8);  //The curr_byte_index variable determines which byte to set the bit in during the current iteration. Using offset_index and curr_byte_index, the current bit's location in the bitmap can be determined.
 
-        bitmap[62 + current_byte_index] |= mask;
+        bitmap[62 + curr_byte_index] |= mask;  //bitmap[62 + curr_byte_index] represents a specific byte within the bitmap to set the bit in. Using the |= operator, the appropriate bit is set. The 62 leaves room for metadata related to the bitmap, which is stored at the beginning of the array.
     }
 
     int f = open("chart.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);

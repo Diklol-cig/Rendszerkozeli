@@ -18,7 +18,7 @@
 int main(int argc, char* argv[]) {
   signal(SIGINT, signal_handeler); //SIGINT signal kezelése
     namecheck(argc, argv); //Megnézi hogy a futtatható állomány neve chart-e és a parancssori argumentumokat is ellenőrzi
-    int modes [4] = {1,0,1,0}; 
+    int modes [4] = {1,0,1,0}; //A program alapbeállításai[send,file]
     modecheck(modes, argc, argv); //Megnézi hogy a parancssori argumentumok jók-e
-    execute_commands(modes);
+    execute_commands(modes);  //Végrehajtja a parancsokat
 }
